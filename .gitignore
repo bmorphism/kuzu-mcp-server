@@ -198,3 +198,5 @@ dist
 database
 history.txt
 .mcp.json
+--help
+.flox
