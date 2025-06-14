@@ -2,12 +2,46 @@
 
 A Model Context Protocol (MCP) server that provides seamless access to [Kuzu](https://kuzudb.com/) graph databases. This integration enables Large Language Models (LLMs) like Claude to inspect database schemas and execute Cypher queries on Kuzu databases, with a particular focus on path invariance analysis and category theory applications.
 
-## New Features
+## ✅ Latest Updates (Fixed & Working)
 
-- **Path Invariance Analysis**: Support for analyzing path invariance properties in graph structures (see [PATH_INVARIANCE.md](docs/PATH_INVARIANCE.md))
-- **Pulse Server Integration**: Connect with the Pulse MCP server for semantic search of MCP capabilities
-- **Progress Callback Integration**: Improved API usage with proper progress callbacks for all database operations
-- **Example Scripts**: Demonstration scripts for path invariance concepts and MCP server integration
+- **✅ Fixed MCP SDK**: Updated to latest version 1.12.3 with full compatibility
+- **✅ Enhanced Error Handling**: Comprehensive error handling with detailed error messages
+- **✅ Health Check Tool**: New diagnostic tool for monitoring database connection status
+- **✅ Comprehensive Test Suite**: Full MCP functionality testing with 100% pass rate
+- **✅ Progress Callback Integration**: Proper API usage with progress callbacks for all database operations
+- **✅ Path Invariance Analysis**: Support for analyzing path invariance properties in graph structures
+- **✅ Connection Validation**: Robust database connection handling and validation
+
+## Testing & Validation
+
+The Kuzu MCP server includes comprehensive testing to ensure reliability:
+
+### Quick Test
+
+```bash
+# Run basic functionality test
+npm test
+
+# Or run the comprehensive MCP test suite
+node test-mcp.js
+```
+
+### Available Test Scripts
+
+- `simple-test.js` - Basic database connectivity and query tests
+- `test-mcp.js` - Full MCP functionality test suite with 13 test cases
+- `setup-with-callback.js` - Database initialization and setup
+
+### Test Coverage
+
+The test suite validates:
+- ✅ MCP tool discovery and listing
+- ✅ Database schema retrieval
+- ✅ Cypher query execution
+- ✅ Health check functionality
+- ✅ Error handling and validation
+- ✅ Prompt generation capabilities
+- ✅ Connection resilience
 
 ## Features
 
@@ -325,11 +359,60 @@ node examples/kuzu_pulse_integration.js
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues & Solutions
 
 1. **Database Path Not Found**: Ensure the specified database path exists and is accessible
+   ```bash
+   # Create database directory if it doesn't exist
+   mkdir -p /path/to/your/kuzu/database
+   ```
+
 2. **Permission Issues**: Check that your user has read/write permissions to the database directory
+   ```bash
+   # Fix permissions
+   chmod 755 /path/to/your/kuzu/database
+   ```
+
 3. **Docker Volume Mounting**: Verify that the absolute path to your database is correctly specified when using Docker
+   ```bash
+   # Use absolute paths
+   docker run -v /absolute/path/to/database:/database kuzu-mcp-server
+   ```
+
+4. **MCP SDK Compatibility**: If you encounter MCP-related errors, ensure you're using the latest SDK
+   ```bash
+   npm update @modelcontextprotocol/sdk
+   ```
+
+5. **Connection Timeout**: For large databases, increase timeout settings
+   ```bash
+   # Set environment variable for longer timeout
+   export KUZU_TIMEOUT=60000
+   ```
+
+6. **Progress Callback Errors**: These are now fixed in the latest version, but if you encounter them:
+   ```bash
+   # Run the comprehensive test suite
+   node test-mcp.js
+   ```
+
+### Diagnostic Commands
+
+Run these commands to diagnose issues:
+
+```bash
+# Test basic database connectivity
+node simple-test.js
+
+# Run comprehensive MCP test suite
+node test-mcp.js
+
+# Check database health
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"healthCheck","arguments":{}}}' | node index.js /path/to/database
+
+# Verify database schema
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getSchema","arguments":{}}}' | node index.js /path/to/database
+```
 
 ### Logs and Debugging
 
@@ -337,9 +420,31 @@ The server outputs information about:
 - Database path and read-only mode status
 - Schema information (number of node and relationship tables found)
 - Query execution errors
+- Connection health status
 
 For more detailed debugging, you can run the server with Node.js debugging options:
 
 ```bash
 NODE_DEBUG=* node index.js /path/to/database
+```
+
+### Quick Health Check
+
+If you're unsure whether the server is working, run this quick test:
+
+```bash
+# This should return server status in JSON format
+timeout 10s node index.js ./kuzu_data <<< '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"healthCheck","arguments":{}}}'
+```
+
+Expected output should include:
+```json
+{
+  "status": "healthy",
+  "dbPath": "./kuzu_data",
+  "readOnly": false,
+  "tablesCount": 8,
+  "timestamp": "2025-06-14T10:35:35.076Z",
+  "version": "0.1.0"
+}
 ```

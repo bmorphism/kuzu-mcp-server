@@ -80,9 +80,15 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-// Initialize database connection
-const db = new kuzu.Database(dbPath, 0, true, isReadOnly);
-const conn = new kuzu.Connection(db);
+// Initialize database connection with error handling
+let db, conn;
+try {
+  db = new kuzu.Database(dbPath, 0, true, isReadOnly);
+  conn = new kuzu.Connection(db);
+} catch (error) {
+  console.error(`Failed to initialize database connection: ${error.message}`);
+  process.exit(1);
+}
 
 // Generate Cypher prompt template
 const getPrompt = (question, schema) => {
@@ -209,8 +215,12 @@ const getSchema = async (connection) => {
   }
 };
 
-// Execute a Cypher query with error handling
+// Execute a Cypher query with error handling and connection validation
 const executeCypherQuery = async (connection, cypher) => {
+  if (!connection) {
+    throw new Error("Database connection is not available");
+  }
+
   try {
     const queryResult = await connection.query(cypher, progressCallback);
     const rows = await queryResult.getAll();
@@ -218,7 +228,8 @@ const executeCypherQuery = async (connection, cypher) => {
     return rows;
   } catch (error) {
     console.error(`Error executing query: ${error.message}`);
-    throw error;
+    console.error(`Query: ${cypher}`);
+    throw new Error(`Database query failed: ${error.message}`);
   }
 };
 
@@ -243,6 +254,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "getSchema",
         description: "Get the schema of the Kuzu database",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "healthCheck",
+        description:
+          "Check the health and status of the Kuzu database connection",
         inputSchema: {
           type: "object",
           properties: {},
@@ -275,8 +295,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
+    if (!request.params || !request.params.name) {
+      throw new Error("Invalid request: missing tool name");
+    }
+
     if (request.params.name === "graphQuery") {
-      const cypher = request.params.arguments.cypher;
+      if (!request.params.arguments || !request.params.arguments.cypher) {
+        throw new Error("Missing required parameter: cypher");
+      }
+      const cypher = request.params.arguments.cypher.trim();
+      if (!cypher) {
+        throw new Error("Cypher query cannot be empty");
+      }
       const rows = await executeCypherQuery(conn, cypher);
       return {
         content: [
@@ -293,6 +323,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [{ type: "text", text: JSON.stringify(schema, null, 2) }],
         isError: false,
       };
+    } else if (request.params.name === "healthCheck") {
+      try {
+        // Test basic database connectivity
+        const testResult = await conn.query(
+          "CALL show_tables() RETURN *",
+          progressCallback,
+        );
+        const tables = await testResult.getAll();
+        testResult.close();
+
+        // Get basic stats
+        const stats = {
+          status: "healthy",
+          dbPath: dbPath,
+          readOnly: isReadOnly,
+          tablesCount: tables.length,
+          timestamp: new Date().toISOString(),
+          version: "0.1.0",
+        };
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(stats, null, 2) }],
+          isError: false,
+        };
+      } catch (error) {
+        const errorStats = {
+          status: "unhealthy",
+          dbPath: dbPath,
+          readOnly: isReadOnly,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+          version: "0.1.0",
+        };
+
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(errorStats, null, 2) },
+          ],
+          isError: true,
+        };
+      }
     } else if (request.params.name === "generateKuzuCypher") {
       // This is a placeholder - the actual implementation would require calling an LLM
       // The client should use the prompt endpoint instead, but we could extend this
@@ -309,6 +380,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     throw new Error(`Unknown tool: ${request.params.name}`);
   } catch (error) {
+    console.error(`Tool call error: ${error.message}`);
     return {
       content: [{ type: "text", text: `Error: ${error.message}` }],
       isError: true,
@@ -337,27 +409,48 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
 });
 
 server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-  if (request.params.name === "generateKuzuCypher") {
-    const question = request.params.arguments.question;
-    const schema = await getSchema(conn);
-    return {
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: getPrompt(question, schema),
+  try {
+    if (!request.params || !request.params.name) {
+      throw new Error("Invalid request: missing prompt name");
+    }
+
+    if (request.params.name === "generateKuzuCypher") {
+      if (!request.params.arguments || !request.params.arguments.question) {
+        throw new Error("Missing required parameter: question");
+      }
+      const question = request.params.arguments.question.trim();
+      if (!question) {
+        throw new Error("Question cannot be empty");
+      }
+      const schema = await getSchema(conn);
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: getPrompt(question, schema),
+            },
           },
-        },
-      ],
-    };
+        ],
+      };
+    }
+    throw new Error(`Unknown prompt: ${request.params.name}`);
+  } catch (error) {
+    console.error(`Prompt handler error: ${error.message}`);
+    throw error;
   }
-  throw new Error(`Unknown prompt: ${request.params.name}`);
 });
 
 async function main() {
   console.log(`Starting Kuzu MCP server with database at: ${dbPath}`);
   console.log(`Read-only mode: ${isReadOnly ? "enabled" : "disabled"}`);
+
+  // Validate database connection
+  if (!conn) {
+    console.error("Database connection failed during initialization");
+    process.exit(1);
+  }
 
   // Initialize database if empty
   try {
@@ -379,6 +472,8 @@ async function main() {
           // We use require here to execute the setup script
           require(setupScript);
           console.log("Database initialization triggered.");
+        } else {
+          console.warn("Setup script not found. Database will remain empty.");
         }
       } catch (setupError) {
         console.error(`Failed to run setup script: ${setupError.message}`);
@@ -390,11 +485,23 @@ async function main() {
       `Connected to database with ${schema.nodeTables.length} node tables and ${schema.relTables.length} relationship tables`,
     );
   } catch (error) {
-    console.log(`Database is empty or invalid. Error: ${error.message}`);
+    console.warn(`Database validation failed: ${error.message}`);
+    if (!isReadOnly) {
+      console.log("Attempting to continue with potentially empty database...");
+    } else {
+      console.error("Cannot proceed with read-only mode on invalid database");
+      process.exit(1);
+    }
   }
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.log("MCP server started successfully");
+  } catch (error) {
+    console.error(`Failed to start MCP server: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {

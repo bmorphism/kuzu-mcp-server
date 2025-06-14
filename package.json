@@ -1,15 +1,27 @@
 {
   "name": "kuzu-mcp",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Kuzu MCP server implementation",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node simple-test.js",
+    "setup": "node setup-with-callback.js"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.12.3",
     "kuzu": "^0.10.0"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "kuzu",
+    "graph-database",
+    "cypher",
+    "model-context-protocol"
+  ]
 }
