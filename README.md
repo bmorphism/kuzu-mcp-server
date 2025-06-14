@@ -2,6 +2,30 @@
 
 A Model Context Protocol (MCP) server that provides seamless access to [Kuzu](https://kuzudb.com/) graph databases. This integration enables Large Language Models (LLMs) like Claude to inspect database schemas and execute Cypher queries on Kuzu databases, with a particular focus on path invariance analysis and category theory applications.
 
+## 🚀 Quick Start with npx
+
+**No installation required!** Use npx to run the server directly:
+
+```bash
+# Start with a specific database path
+npx kuzu-mcp-server ./my-database
+
+# Initialize a new database with sample data
+npx kuzu-mcp-server --setup ./new-database
+
+# Run health check on existing database
+npx kuzu-mcp-server --health ./my-database
+
+# Run comprehensive test suite
+npx kuzu-mcp-server --test
+
+# Start in read-only mode
+npx kuzu-mcp-server --read-only ./production-db
+
+# Show help
+npx kuzu-mcp-server --help
+```
+
 ## ✅ Latest Updates (Fixed & Working)
 
 - **✅ Fixed MCP SDK**: Updated to latest version 1.12.3 with full compatibility
@@ -51,30 +75,59 @@ The test suite validates:
 - **Read-Only Mode**: Optional protection against database modifications
 - **Docker Support**: Run as a containerized service for enhanced portability and isolation
 
-## Quick Start
+## Installation Options
 
-### Prerequisites
+### Option 1: Use with npx (Recommended)
 
-- Node.js 18+ (or Docker)
-- A Kuzu database (or use the provided setup script to create a sample database)
+**No installation required!** Just use npx:
 
-### Installation
+```bash
+npx kuzu-mcp-server --setup ./my-database
+```
+
+### Option 2: Global Installation
+
+```bash
+npm install -g kuzu-mcp-server
+kuzu-mcp-server --setup ./my-database
+```
+
+### Option 3: Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/kuzu-mcp-server.git
+git clone https://github.com/bmorphism/kuzu-mcp-server.git
 cd kuzu-mcp-server
 
 # Install dependencies
 npm install
 
-# Initialize a sample database (optional)
-node setup-db.js
+# Initialize a sample database
+npm run setup
 ```
+
+### Prerequisites
+
+- Node.js 18+ (or Docker)
+- A Kuzu database (created automatically with `--setup`)
 
 ### Running the Server
 
-#### Using Node.js
+#### Using npx (Recommended)
+
+```bash
+# Start with a specific database path
+npx kuzu-mcp-server /path/to/your/kuzu/database
+
+# Start with environment variable
+export KUZU_DB_PATH=/path/to/your/kuzu/database
+npx kuzu-mcp-server
+
+# Start in read-only mode
+npx kuzu-mcp-server --read-only /path/to/your/kuzu/database
+```
+
+#### Using Node.js (Development)
 
 ```bash
 # Start with a specific database path
@@ -117,9 +170,9 @@ Edit the Claude Desktop configuration file:
 {
   "mcpServers": {
     "kuzu": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/absolute/path/to/kuzu-mcp-server/index.js",
+        "kuzu-mcp-server",
         "/absolute/path/to/kuzu/database"
       ],
       "description": "Kuzu graph database integration",
@@ -127,6 +180,7 @@ Edit the Claude Desktop configuration file:
       "autoApprove": [
         "getSchema",
         "graphQuery",
+        "healthCheck",
         "generateKuzuCypher"
       ]
     }
@@ -222,22 +276,34 @@ Find all people who live in cities in the USA and have friendships with strength
 </mcp:kuzu:generateKuzuCypher>
 ```
 
-## Setup Script
+## Database Setup
 
-The included `setup-db.js` script provides several helpful features:
+### Quick Setup with npx
 
-- Creates a new Kuzu database with a sample schema (people, cities, and their relationships)
-- Detects existing Kuzu configuration in MCP configuration files
-- Updates the global MCP configuration to include the Kuzu server
+```bash
+# Create a new database with sample data (recommended for first-time users)
+npx kuzu-mcp-server --setup ./my-database
 
-To use the setup script:
+# Run health check to verify setup
+npx kuzu-mcp-server --health ./my-database
+```
+
+### Manual Setup
+
+The included `setup-with-callback.js` script provides several helpful features:
+
+- Creates a new Kuzu database with a sample schema (people, locations, concepts, and their relationships)
+- Includes sample data for testing and learning
+- Creates proper node and relationship tables
+
+To use the setup script manually:
 
 ```bash
 # Use the default database path
-node setup-db.js
+node setup-with-callback.js
 
 # Specify a custom database path
-node setup-db.js /path/to/your/kuzu/database
+node setup-with-callback.js /path/to/your/kuzu/database
 ```
 
 ## Sample Database Schema
@@ -361,10 +427,10 @@ node examples/kuzu_pulse_integration.js
 
 ### Common Issues & Solutions
 
-1. **Database Path Not Found**: Ensure the specified database path exists and is accessible
+1. **Database Path Not Found**: Use the setup command to create a new database
    ```bash
-   # Create database directory if it doesn't exist
-   mkdir -p /path/to/your/kuzu/database
+   # Create database with sample data
+   npx kuzu-mcp-server --setup /path/to/your/kuzu/database
    ```
 
 2. **Permission Issues**: Check that your user has read/write permissions to the database directory
@@ -373,45 +439,45 @@ node examples/kuzu_pulse_integration.js
    chmod 755 /path/to/your/kuzu/database
    ```
 
-3. **Docker Volume Mounting**: Verify that the absolute path to your database is correctly specified when using Docker
+3. **Database Lock Issues**: If you see lock errors, ensure no other process is using the database
+   ```bash
+   # Remove lock file if database is not in use
+   rm -f /path/to/database/.lock
+   ```
+
+4. **Connection Issues**: Run health check to diagnose connection problems
+   ```bash
+   npx kuzu-mcp-server --health /path/to/database
+   ```
+
+5. **Docker Volume Mounting**: Verify that the absolute path to your database is correctly specified when using Docker
    ```bash
    # Use absolute paths
    docker run -v /absolute/path/to/database:/database kuzu-mcp-server
    ```
 
-4. **MCP SDK Compatibility**: If you encounter MCP-related errors, ensure you're using the latest SDK
-   ```bash
-   npm update @modelcontextprotocol/sdk
-   ```
-
-5. **Connection Timeout**: For large databases, increase timeout settings
-   ```bash
-   # Set environment variable for longer timeout
-   export KUZU_TIMEOUT=60000
-   ```
-
-6. **Progress Callback Errors**: These are now fixed in the latest version, but if you encounter them:
-   ```bash
-   # Run the comprehensive test suite
-   node test-mcp.js
-   ```
+6. **MCP SDK Compatibility**: The package includes the latest MCP SDK (1.12.3)
 
 ### Diagnostic Commands
 
 Run these commands to diagnose issues:
 
 ```bash
-# Test basic database connectivity
-node simple-test.js
-
-# Run comprehensive MCP test suite
-node test-mcp.js
+# Run comprehensive test suite
+npx kuzu-mcp-server --test
 
 # Check database health
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"healthCheck","arguments":{}}}' | node index.js /path/to/database
+npx kuzu-mcp-server --health /path/to/database
 
-# Verify database schema
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getSchema","arguments":{}}}' | node index.js /path/to/database
+# Show version and help
+npx kuzu-mcp-server --version
+npx kuzu-mcp-server --help
+
+# For development: test basic connectivity
+node simple-test.js
+
+# For development: run MCP test suite
+node test-mcp.js
 ```
 
 ### Logs and Debugging
@@ -433,18 +499,35 @@ NODE_DEBUG=* node index.js /path/to/database
 If you're unsure whether the server is working, run this quick test:
 
 ```bash
-# This should return server status in JSON format
-timeout 10s node index.js ./kuzu_data <<< '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"healthCheck","arguments":{}}}'
+# Simple health check using npx
+npx kuzu-mcp-server --health ./your-database
 ```
 
 Expected output should include:
-```json
-{
+```bash
+✅ Database is healthy
+Health Status: {
   "status": "healthy",
-  "dbPath": "./kuzu_data",
+  "dbPath": "./your-database",
   "readOnly": false,
   "tablesCount": 8,
-  "timestamp": "2025-06-14T10:35:35.076Z",
+  "timestamp": "2025-06-14T10:43:12.380Z",
   "version": "0.1.0"
 }
+```
+
+### Complete Setup Example
+
+```bash
+# 1. Create a new database with sample data
+npx kuzu-mcp-server --setup ./my-kuzu-db
+
+# 2. Verify the database is healthy
+npx kuzu-mcp-server --health ./my-kuzu-db
+
+# 3. Run the test suite
+npx kuzu-mcp-server --test
+
+# 4. Start the MCP server
+npx kuzu-mcp-server ./my-kuzu-db
 ```

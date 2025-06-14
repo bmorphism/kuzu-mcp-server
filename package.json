@@ -1,15 +1,32 @@
 {
-  "name": "kuzu-mcp",
+  "name": "kuzu-mcp-server",
   "version": "0.1.0",
-  "description": "Kuzu MCP server implementation",
+  "description": "A Model Context Protocol (MCP) server for Kuzu graph databases. Enables LLMs like Claude to execute Cypher queries and analyze graph data with path invariance support.",
   "main": "index.js",
+  "bin": {
+    "kuzu-mcp-server": "./bin/kuzu-mcp-server.js"
+  },
   "scripts": {
     "start": "node index.js",
     "test": "node simple-test.js",
-    "setup": "node setup-with-callback.js"
+    "setup": "node setup-with-callback.js",
+    "prepublishOnly": "npm test"
   },
-  "author": "",
+  "author": {
+    "name": "Infinity Topos",
+    "email": "freemorphism@gmail.com",
+    "url": "https://github.com/infinity-topos"
+  },
   "license": "MIT",
+  "homepage": "https://github.com/bmorphism/kuzu-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bmorphism/kuzu-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bmorphism/kuzu-mcp-server/issues",
+    "email": "freemorphism@gmail.com"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.3",
     "kuzu": "^0.10.0"
@@ -22,6 +39,30 @@
     "kuzu",
     "graph-database",
     "cypher",
-    "model-context-protocol"
-  ]
+    "model-context-protocol",
+    "claude",
+    "llm",
+    "ai",
+    "database",
+    "path-invariance",
+    "category-theory",
+    "infinity-topos"
+  ],
+  "files": [
+    "index.js",
+    "setup-with-callback.js",
+    "simple-test.js",
+    "test-mcp.js",
+    "bin/",
+    "docs/",
+    "examples/",
+    "README.md",
+    "LICENSE",
+    "UPGRADE-REPORT.md",
+    ".topos/"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "preferGlobal": true
 }
